@@ -2,31 +2,45 @@
 #include "ws2812b.h"
 
 #define LEDNUM 8
+#define HUE_DIFF 45
+#define SATURATION 1
+#define BRIGHTNESS 1
+#define MAX_HUE 360
+#define DELAY_MS 1
+
+void delay(int delay_ms);
+void update_hue(int *hues);
 
 int main(void) {
   NU32DIP_Startup();
   ws2812b_setup();
 
   wsColor pixels[LEDNUM];
-  volatile int hues[8];
+  int hues[LEDNUM];
   
-  for (int i = 0; i < 8; i++)
-  {
-    hues[i] = i*45;
+  for (int i = 0; i < LEDNUM; i++) {
+    hues[i] = i * HUE_DIFF;
   }
   
-  while(1){
-        for (int i = 0; i < 8; i++){
-          pixels[i] = HSBtoRGB(hues[i],1,1);
-          hues[i] = hues[i] + 1;
-          if (hues[i] > 360){
-              hues[i] = 0;
-          }
-        }
+  while(1) {
+    for (int i = 0; i < LEDNUM; i++) {
+      pixels[i] = HSBtoRGB(hues[i], SATURATION, BRIGHTNESS);
+    }
+    
+    update_hue(hues);
+    ws2812b_setColor(pixels, LEDNUM);
+    
+    delay(DELAY_MS);
+  }
+}
 
-        ws2812b_setColor(pixels, LEDNUM);
-        int delay = _CP0_GET_COUNT();
-        while(_CP0_GET_COUNT()< delay + 24000000/1000){}
-        
+void delay(int delay_ms) {
+  unsigned int delay_count = _CP0_GET_COUNT() + delay_ms * (24000000 / 1000);
+  while(_CP0_GET_COUNT() < delay_count) {}
+}
+
+void update_hue(int *hues) {
+  for (int i = 0; i < LEDNUM; i++) {
+    hues[i] = (hues[i] + 1) % MAX_HUE;
   }
 }
