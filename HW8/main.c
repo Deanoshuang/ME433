@@ -9,64 +9,59 @@
 #include "font.h"
 #include "nu32dip.h"
 
+#define WHO_AM_I_VALUE 0x68
+#define DELAY_SCALE 1.4
+#define CORE_TICKS_PER_SECOND 48000000 / 2
+
 void generic_i2c_write(unsigned char address, unsigned char registr, unsigned char value);
 unsigned char read_GP0(unsigned char address, unsigned char registr);
 void blink(int iterations, int time_ms);
+void check_who_am_i();
+void display_messages(int count, float az);
 
 int main() {
-
     NU32DIP_Startup();
     i2c_master_setup();
     ssd1306_setup();
     init_mpu6050();
-    // char array for the raw data
-    char d[IMU_ARRAY_LEN];
-	// floats to store the data
-    float az;
-	// read whoami
-    char who;
-    who = whoami(); 
-	// print whoami
+    check_who_am_i();
 
-    // if whoami is not 0x68, stuck in loop with LEDs on
-    if(who!= 0x68){
-      while(1){
-        LATAbits.LATA4 = 1;
-      }
-    }
-   
-    
-    float dt = 0.005; 
-    float a = 0.5;
-    char m_in[100];
-    char m_out[200];
-    
-    char message[50];
-    int i = 0;
-    sprintf(message, "Hello world!");
-    drawString(message, 0, 0);
-    sprintf(message, "I AM TOMMY");
-    drawString(message, 0, 8);
-    sprintf(message, " counter = ");
-    drawString(message, 0, 16);
-    sprintf(message, "X-acceleration = ");
-    drawString(message, 0, 24);
+    char data[IMU_ARRAY_LEN];
+    float az;
+    int count = 0;
 
     while (1) {
         blink(1,5);
-        sprintf(message, "%d", i);
-        drawString(message, 70, 16);
         _CP0_SET_COUNT(0);
         ssd1306_update();
-        i++;
-        burst_read_mpu6050(d);
-          
-        az = conv_xXL(d);
-        while (_CP0_GET_COUNT() < 48000000 / 2 *1.4 ) {}
-        sprintf(message,"%f\r\n",az);
-        drawString(message, 85, 24);
-        
+        count++;
+        burst_read_mpu6050(data);
+        az = conv_xXL(data);
+        while (_CP0_GET_COUNT() < CORE_TICKS_PER_SECOND * DELAY_SCALE) {}
+        display_messages(count, az);
     }
+}
+
+void check_who_am_i() {
+    char who = whoami();
+    if(who != WHO_AM_I_VALUE){
+      while(1){
+        LATAbits.LATA4 = 1;  // Turn on LED to signal error state
+      }
+    }
+}
+
+void display_messages(int count, float az) {
+    char message[50];
+
+    sprintf(message, "Hello world!");
+    drawString(message, 0, 0);
+    sprintf(message, "I am Dean");
+    drawString(message, 0, 8);
+    sprintf(message, " counter = %d", count);
+    drawString(message, 0, 16);
+    sprintf(message, "X acc= %f\r\n", az);
+    drawString(message, 85, 24);
 }
 
 // blink the LEDs
